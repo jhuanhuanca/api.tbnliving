@@ -21,9 +21,20 @@ class AuthRegisterPreferenteController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'document_id' => ['required', 'string', 'max:64', 'unique:users,document_id'],
+            'birth_date' => [
+                'required',
+                'date',
+                'date_format:Y-m-d',
+                'before_or_equal:'.now()->subYears(18)->format('Y-m-d'),
+            ],
             'sponsor_referral_code' => ['required', 'string', 'max:32'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'country_code' => ['nullable', 'string', 'size:2'],
+        ], [
+            'birth_date.required' => 'La fecha de nacimiento es obligatoria.',
+            'birth_date.date_format' => 'La fecha de nacimiento debe ser válida.',
+            'birth_date.before_or_equal' => 'Debes ser mayor o igual de 18 años para inscribirte.',
+            'sponsor_referral_code.required' => 'Debes contactarte con un patrocinador para poder inscribirte.',
         ]);
 
         $sponsor = MemberCodeService::findUserBySponsorCode($validated['sponsor_referral_code']);
@@ -64,7 +75,7 @@ class AuthRegisterPreferenteController extends Controller
             'password' => $validated['password'],
             'document_id' => $validated['document_id'],
             'phone' => null,
-            'birth_date' => null,
+            'birth_date' => $validated['birth_date'],
             'sponsor_id' => $sponsor->id,
             'account_type' => 'preferred_customer',
             'rank_id' => Rank::query()->where('slug', 'sin_rango')->value('id'),

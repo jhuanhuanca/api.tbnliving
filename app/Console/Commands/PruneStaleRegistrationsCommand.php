@@ -54,6 +54,9 @@ class PruneStaleRegistrationsCommand extends Command
             if ($user->canAccessAdminPanel()) {
                 continue;
             }
+            if ((string) $user->account_status === 'reserved') {
+                continue;
+            }
             if ($dry) {
                 $this->line("Candidato #{$user->id} {$user->email} created={$user->created_at} verified=".($user->email_verified_at ? 'yes' : 'no')." paid=".($user->activation_paid_at ? 'yes' : 'no'));
                 continue;

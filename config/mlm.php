@@ -34,8 +34,15 @@ return [
 
     /** Código numérico consecutivo del socio (también es referral_code en string). */
     'member_code' => [
-        'min' => (int) env('MLM_MEMBER_CODE_MIN', 10),
+        'min' => (int) env('MLM_MEMBER_CODE_MIN', 1),
         'max' => (int) env('MLM_MEMBER_CODE_MAX', 1_000_000),
+        /** Ancho con ceros a la izquierda en referral_code (000001 … 1000000). */
+        'pad_width' => (int) env('MLM_MEMBER_CODE_PAD_WIDTH', 6),
+    ],
+
+    /** Espacios reservados bajo el MASTER en cada pierna binaria (seeder). */
+    'master_network' => [
+        'reserved_per_leg' => (int) env('MLM_MASTER_RESERVED_PER_LEG', 18),
     ],
 
     /**

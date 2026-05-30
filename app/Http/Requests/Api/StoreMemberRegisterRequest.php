@@ -64,8 +64,13 @@ class StoreMemberRegisterRequest extends FormRequest
             'password_confirmation' => ['required', 'string', 'min:8'],
             'document_id' => ['required', 'string', 'max:64'],
             'phone' => ['required', 'string', 'max:32'],
-            'birth_date' => ['required', 'date', 'date_format:Y-m-d', 'before:today'],
-            'sponsor_referral_code' => ['nullable', 'string', 'max:32'],
+            'birth_date' => [
+                'required',
+                'date',
+                'date_format:Y-m-d',
+                'before_or_equal:'.now()->subYears(18)->format('Y-m-d'),
+            ],
+            'sponsor_referral_code' => ['required', 'string', 'max:32'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'country_code' => ['nullable', 'string', 'size:2'],
             'registration_package_id' => ['nullable', 'integer', 'exists:packages,id'],
@@ -78,7 +83,8 @@ class StoreMemberRegisterRequest extends FormRequest
     {
         return [
             'birth_date.date_format' => 'La fecha de nacimiento debe ser válida.',
-            'birth_date.before' => 'La fecha de nacimiento debe ser anterior a hoy.',
+            'birth_date.before_or_equal' => 'Debes ser mayor o igual de 18 años para inscribirte.',
+            'sponsor_referral_code.required' => 'Debes contactarte con un patrocinador para poder inscribirte.',
             'password.confirmed' => 'La confirmación de contraseña no coincide.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'country_id.exists' => 'El país seleccionado no existe en el catálogo del servidor.',

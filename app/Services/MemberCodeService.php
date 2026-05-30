@@ -7,13 +7,20 @@ use Illuminate\Support\Facades\DB;
 
 class MemberCodeService
 {
+    public static function formatReferralCode(int $code): string
+    {
+        $width = max(1, (int) config('mlm.member_code.pad_width', 6));
+
+        return str_pad((string) $code, $width, '0', STR_PAD_LEFT);
+    }
+
     public function assignToNewUser(User $user): void
     {
         if ($user->member_code !== null && $user->referral_code !== null) {
             return;
         }
 
-        $min = (int) config('mlm.member_code.min', 10);
+        $min = (int) config('mlm.member_code.min', 1);
         $max = (int) config('mlm.member_code.max', 1_000_000);
 
         DB::transaction(function () use ($user, $min, $max) {
@@ -32,8 +39,16 @@ class MemberCodeService
             }
 
             $user->member_code = $assigned;
-            $user->referral_code = (string) $assigned;
+            $user->referral_code = self::formatReferralCode($assigned);
         });
+    }
+
+    public function syncCounter(int $nextAssignable): void
+    {
+        DB::table('mlm_member_code_counter')->updateOrInsert(
+            ['id' => 1],
+            ['next_assignable' => max(1, $nextAssignable)]
+        );
     }
 
     public static function findUserBySponsorCode(string $code): ?User
@@ -43,13 +58,23 @@ class MemberCodeService
             return null;
         }
 
-        $user = User::query()->where('referral_code', $c)->first();
+        $eligible = static fn () => User::query()->where('account_status', '!=', 'reserved');
+
+        $user = $eligible()->where('referral_code', $c)->first();
         if ($user) {
             return $user;
         }
 
         if (ctype_digit($c)) {
-            return User::query()->where('member_code', (int) $c)->first();
+            $numeric = (int) $c;
+
+            return $eligible()
+                ->where(function ($q) use ($numeric, $c) {
+                    $q->where('member_code', $numeric)
+                        ->orWhere('referral_code', self::formatReferralCode($numeric))
+                        ->orWhere('referral_code', $c);
+                })
+                ->first();
         }
 
         return null;

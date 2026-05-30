@@ -11,11 +11,11 @@ return new class extends Migration
     {
         Schema::create('mlm_member_code_counter', function (Blueprint $table) {
             $table->id();
-            /** Próximo código a asignar (10 … 1_000_000) */
-            $table->unsignedInteger('next_assignable')->default(10);
+            /** Próximo código a asignar (1 … 1_000_000) */
+            $table->unsignedInteger('next_assignable')->default(1);
         });
 
-        DB::table('mlm_member_code_counter')->insert(['next_assignable' => 10]);
+        DB::table('mlm_member_code_counter')->insert(['next_assignable' => 1]);
 
         Schema::table('users', function (Blueprint $table) {
             $table->unsignedInteger('member_code')->nullable()->unique()->after('referral_code');

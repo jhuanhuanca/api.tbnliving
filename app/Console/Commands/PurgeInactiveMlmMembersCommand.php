@@ -44,6 +44,9 @@ class PurgeInactiveMlmMembersCommand extends Command
             if ($user->canAccessAdminPanel()) {
                 continue;
             }
+            if ((string) $user->account_status === 'reserved') {
+                continue;
+            }
 
             if ($dry) {
                 $this->line("Candidato #{$user->id} {$user->email} last={$user->last_mlm_activity_at}");
