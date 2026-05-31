@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Admin\AdminPackageController;
 use App\Http\Controllers\Api\Admin\AdminProductController;
 use App\Http\Controllers\Api\Admin\AdminReconciliationController;
 use App\Http\Controllers\Api\Admin\AdminTreeController;
+use App\Http\Controllers\Api\Admin\AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminWalletController;
 use App\Http\Controllers\Api\Admin\AdminWithdrawalController;
@@ -61,6 +62,8 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
         Route::post('withdrawals/{withdrawal}/approve', [AdminWithdrawalController::class, 'approve']);
         Route::post('withdrawals/{withdrawal}/reject', [AdminWithdrawalController::class, 'reject']);
         Route::get('withdrawals/{withdrawal}/print', [AdminPrintController::class, 'withdrawal']);
+        Route::get('support-tickets', [AdminSupportTicketController::class, 'index']);
+        Route::patch('support-tickets/{supportTicket}', [AdminSupportTicketController::class, 'update']);
         Route::post('binary-placement', [BinaryPlacementController::class, 'store']);
         Route::get('reconciliation/period-closures', [AdminReconciliationController::class, 'periodClosures']);
         Route::get('reconciliation/commission-summary', [AdminReconciliationController::class, 'commissionSummary']);

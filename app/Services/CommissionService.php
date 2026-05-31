@@ -435,7 +435,7 @@ class CommissionService
     }
 
     /**
-     * Bono venta directa: diferencia (precio cliente preferente − precio socio) × cantidad → wallet del patrocinador.
+     * Bono venta directa: 10% del precio público × cantidad → wallet del patrocinador.
      * Solo pedidos de compradores con account_type = preferred_customer e ítems de producto.
      */
     public function acreditarBonosVentaDirectaPreferente(Order $order): void
@@ -459,14 +459,15 @@ class CommissionService
 
             $prod = $item->product;
             $socioUnit = bcadd((string) $prod->price, '0', 2);
+            $publicUnit = \App\Support\PreferredCustomerPricing::publicPrice($prod);
             $paidUnit = bcadd((string) $item->precio_unitario, '0', 2);
             $qty = (string) $item->cantidad;
-            $deltaUnit = bcsub($paidUnit, $socioUnit, 2);
-            if (bccomp($deltaUnit, '0', 2) !== 1) {
+            $commissionUnit = \App\Support\PreferredCustomerPricing::sponsorCommissionUnit($prod);
+            if (bccomp($commissionUnit, '0', 2) !== 1) {
                 continue;
             }
 
-            $amount = $this->roundMoney(bcmul($deltaUnit, $qty, 4));
+            $amount = $this->roundMoney(bcmul($commissionUnit, $qty, 4));
             if (bccomp($amount, '0', 2) !== 1) {
                 continue;
             }
@@ -486,9 +487,11 @@ class CommissionService
                     'order_item_id' => $item->id,
                     'product_id' => $item->product_id,
                     'precio_socio_unit' => $socioUnit,
+                    'precio_publico_unit' => $publicUnit,
                     'precio_cliente_unit' => $paidUnit,
                     'cantidad' => $qty,
-                    'delta_unit' => $deltaUnit,
+                    'commission_rate' => \App\Support\PreferredCustomerPricing::SPONSOR_COMMISSION_RATE,
+                    'commission_unit' => $commissionUnit,
                     'label' => 'Bono venta directa',
                 ]
             );

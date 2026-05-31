@@ -78,6 +78,42 @@
         @endif
     </div>
 
+    @php
+        $ws = $walletSettings ?? null;
+        $methodLabels = ['USDT' => 'USDT (TRC20)', 'BTC' => 'Bitcoin', 'BANK' => 'Transferencia bancaria'];
+    @endphp
+    <div class="card">
+        <div class="k" style="font-weight:700; margin-bottom:8px;">Datos de cobro del socio</div>
+        @if(empty($ws))
+            <p style="color:var(--muted); margin:0;">El socio no registró configuración de billetera.</p>
+        @else
+            <div class="row">
+                <div class="k">Método</div>
+                <div class="v">{{ $methodLabels[$ws['method'] ?? ''] ?? ($ws['method'] ?? '—') }}</div>
+            </div>
+            <div class="row">
+                <div class="k">Moneda preferida</div>
+                <div class="v">{{ $ws['currency'] ?? '—' }}</div>
+            </div>
+            @if(($ws['method'] ?? '') === 'BANK')
+                @if(!empty($ws['bank']))
+                    <div class="row"><div class="k">Banco</div><div class="v">{{ $ws['bank'] }}</div></div>
+                @endif
+                @if(!empty($ws['holder']))
+                    <div class="row"><div class="k">Titular</div><div class="v">{{ $ws['holder'] }}</div></div>
+                @endif
+                @if(!empty($ws['account']))
+                    <div class="row"><div class="k">Cuenta / IBAN</div><div class="v">{{ $ws['account'] }}</div></div>
+                @endif
+                @if(!empty($ws['swift']))
+                    <div class="row"><div class="k">SWIFT</div><div class="v">{{ $ws['swift'] }}</div></div>
+                @endif
+            @elseif(!empty($ws['address']))
+                <div class="row"><div class="k">Dirección / wallet</div><div class="v">{{ $ws['address'] }}</div></div>
+            @endif
+        @endif
+    </div>
+
     <div class="card">
         <div class="k" style="font-weight:700; margin-bottom:8px;">Ledger asociado</div>
         <table>

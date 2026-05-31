@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WalletPaymentToken;
 use App\Support\FounderPackages;
 use App\Events\Internal\OrderCreated;
+use App\Support\PreferredCustomerPricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -54,6 +55,10 @@ class OrderController extends Controller
             'payment_settlement' => 'nullable|string|in:immediate,manual',
             'payment_method' => 'nullable|string|max:32', // online, wallet, wallet_token, efectivo, qr, transferencia...
             'payment_token' => 'nullable|string|max:32',
+            'delivery_mode' => 'nullable|string|in:recojo,envio',
+            'shipping_departamento' => 'nullable|string|max:120',
+            'shipping_ciudad' => 'nullable|string|max:120',
+            'shipping_direccion' => 'nullable|string|max:255',
         ]);
 
         foreach ($data['items'] as $i => $row) {
@@ -71,6 +76,26 @@ class OrderController extends Controller
         $paymentMethod = (string) ($data['payment_method'] ?? ($immediate ? 'online' : 'pendiente'));
 
         $buyer = $request->user();
+
+        $deliveryMode = (string) ($data['delivery_mode'] ?? 'recojo');
+        if (! in_array($deliveryMode, ['recojo', 'envio'], true)) {
+            $deliveryMode = 'recojo';
+        }
+
+        if ($deliveryMode === 'envio') {
+            foreach (['shipping_departamento' => 'departamento', 'shipping_ciudad' => 'ciudad', 'shipping_direccion' => 'dirección'] as $field => $label) {
+                if (empty(trim((string) ($data[$field] ?? '')))) {
+                    throw ValidationException::withMessages([
+                        $field => ["Indica el {$label} de entrega."],
+                    ]);
+                }
+            }
+        }
+
+        $shippingCost = '0';
+        if ($deliveryMode === 'envio' && ! $buyer->isPreferredCustomer()) {
+            $shippingCost = '40.00';
+        }
 
         if ($buyer->isPreferredCustomer()) {
             foreach ($data['items'] as $row) {
@@ -140,7 +165,7 @@ class OrderController extends Controller
 
         $buyerId = $request->user()->id;
 
-        $order = DB::transaction(function () use ($data, $buyerId, $immediate, $buyer, $paymentMethod) {
+        $order = DB::transaction(function () use ($data, $buyerId, $immediate, $buyer, $paymentMethod, $deliveryMode, $shippingCost) {
             $total = '0';
             $totalPv = '0';
 
@@ -152,6 +177,11 @@ class OrderController extends Controller
                 'total_pv' => 0,
                 'estado' => $immediate ? 'pendiente' : 'pendiente_pago',
                 'payment_method' => $paymentMethod,
+                'delivery_mode' => $deliveryMode,
+                'shipping_departamento' => $deliveryMode === 'envio' ? trim((string) ($data['shipping_departamento'] ?? '')) : null,
+                'shipping_ciudad' => $deliveryMode === 'envio' ? trim((string) ($data['shipping_ciudad'] ?? '')) : null,
+                'shipping_direccion' => $deliveryMode === 'envio' ? trim((string) ($data['shipping_direccion'] ?? '')) : null,
+                'shipping_cost' => $shippingCost,
             ]);
 
             OrderCreated::dispatch($order->fresh());
@@ -213,14 +243,13 @@ class OrderController extends Controller
                 } else {
                     $prod = Product::query()->findOrFail($row['product_id']);
                     if ($buyer->isPreferredCustomer()) {
-                        $clienteUnit = $prod->price_cliente_preferente !== null
-                            ? (string) $prod->price_cliente_preferente
-                            : (string) $prod->price;
-                        $socioUnit = bcadd((string) $prod->price, '0', 2);
-                        $unit = bcadd($clienteUnit, '0', 2);
+                        $publicUnit = PreferredCustomerPricing::publicPrice($prod);
+                        $unit = PreferredCustomerPricing::preferenteUnitPrice($prod);
+                        $socioUnit = PreferredCustomerPricing::socioUnitPrice($prod);
                         $meta = [
                             'preferred_customer_line' => true,
                             'precio_socio_unit' => $socioUnit,
+                            'precio_publico_unit' => $publicUnit,
                             'precio_cliente_unit' => $unit,
                         ];
                     } else {
@@ -244,6 +273,10 @@ class OrderController extends Controller
                     $total = bcadd($total, $line, 2);
                     $totalPv = bcadd($totalPv, $pvLine, 2);
                 }
+            }
+
+            if (bccomp($shippingCost, '0', 2) === 1) {
+                $total = bcadd($total, $shippingCost, 2);
             }
 
             $order->update([

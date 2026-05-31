@@ -414,4 +414,16 @@ return [
             'timeout_seconds' => (int) env('MLM_INVOICE_ELECTRONIC_TIMEOUT', 30),
         ],
     ],
+
+    /** Correos transaccionales a socios (bienvenida, compras, tickets, rangos). */
+    'notifications' => [
+        'email' => [
+            'enabled' => filter_var(env('MLM_EMAIL_NOTIFICATIONS', true), FILTER_VALIDATE_BOOL),
+            'welcome_on_register' => filter_var(env('MLM_EMAIL_WELCOME', true), FILTER_VALIDATE_BOOL),
+            'sponsor_on_referral' => filter_var(env('MLM_EMAIL_SPONSOR_REFERRAL', true), FILTER_VALIDATE_BOOL),
+            'order_purchase' => filter_var(env('MLM_EMAIL_ORDER_PURCHASE', true), FILTER_VALIDATE_BOOL),
+            'support_ticket_status' => filter_var(env('MLM_EMAIL_TICKET_STATUS', true), FILTER_VALIDATE_BOOL),
+            'rank_achievement' => filter_var(env('MLM_EMAIL_RANK_ACHIEVEMENT', true), FILTER_VALIDATE_BOOL),
+        ],
+    ],
 ];

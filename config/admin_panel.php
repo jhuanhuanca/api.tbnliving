@@ -30,6 +30,7 @@ return [
             'reports.view',
             'analytics.view',
             'settings.view',
+            'support.tickets',
         ],
         'support' => [
             'dashboard.view',

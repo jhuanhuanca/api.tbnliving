@@ -9,6 +9,7 @@ use App\Models\Withdrawal;
 use App\Models\WalletTransaction;
 use App\Services\InvoiceService;
 use App\Support\InvoicePrintPresenter;
+use App\Support\WalletSettingsPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Throwable;
@@ -71,6 +72,8 @@ class AdminPrintController extends Controller
     {
         $withdrawal->loadMissing(['user', 'processor']);
 
+        $walletSettings = WalletSettingsPresenter::fromUser($withdrawal->user);
+
         $ledger = WalletTransaction::query()
             ->where('withdrawal_id', $withdrawal->id)
             ->orderBy('id')
@@ -80,6 +83,7 @@ class AdminPrintController extends Controller
             ->view('print.withdrawal', [
                 'withdrawal' => $withdrawal,
                 'ledger' => $ledger,
+                'walletSettings' => $walletSettings,
             ])
             ->header('Content-Type', 'text/html; charset=UTF-8');
     }

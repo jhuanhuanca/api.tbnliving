@@ -3,12 +3,15 @@
 namespace App\Providers;
 
 use App\Contracts\ElectronicInvoiceGatewayInterface;
+use App\Events\Internal\RankUpdated;
+use App\Events\Internal\UserRegistered;
 use App\Events\OrderCompleted;
 use App\Events\UserActivated;
 use App\Events\Internal\AffiliateActivated;
 use App\Events\WithdrawalCreated;
 use App\Events\WithdrawalStatusChanged;
 use App\Listeners\InvalidateMlmCache;
+use App\Listeners\SendMemberNotificationMails;
 use App\Listeners\SendWithdrawalNotificationMail;
 use App\Listeners\QueueMlmProcessingOnOrderCompleted;
 use App\Models\BinaryPlacement;
@@ -74,6 +77,9 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(OrderCompleted::class, QueueMlmProcessingOnOrderCompleted::class);
         Event::listen(OrderCompleted::class, [InvalidateMlmCache::class, 'handleOrderCompleted']);
+        Event::listen(OrderCompleted::class, [SendMemberNotificationMails::class, 'onOrderCompleted']);
+        Event::listen(UserRegistered::class, [SendMemberNotificationMails::class, 'onUserRegistered']);
+        Event::listen(RankUpdated::class, [SendMemberNotificationMails::class, 'onRankUpdated']);
         Event::listen(UserActivated::class, function (UserActivated $e) {
             // Bridge a evento interno estable para pipelines/event-driven del panel
             AffiliateActivated::dispatch($e->user, $e->qualificationMonth);

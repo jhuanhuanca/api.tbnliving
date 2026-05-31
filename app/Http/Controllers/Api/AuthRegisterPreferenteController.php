@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Country;
 use App\Models\Rank;
 use App\Models\User;
+use App\Events\Internal\UserRegistered;
 use App\Services\MemberCodeService;
 use Illuminate\Http\Request;
 
@@ -84,6 +85,9 @@ class AuthRegisterPreferenteController extends Controller
             'mlm_role' => 'member',
             ...$countryPayload,
         ]);
+
+        $user->loadMissing('sponsor');
+        UserRegistered::dispatch($user->fresh());
 
         $user->sendEmailVerificationNotification();
 

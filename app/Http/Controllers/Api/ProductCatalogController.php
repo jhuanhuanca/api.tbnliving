@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Support\PreferredCustomerPricing;
 use Illuminate\Http\Request;
 
 class ProductCatalogController extends Controller
@@ -32,14 +33,19 @@ class ProductCatalogController extends Controller
                 'category' => $p->category,
             ];
 
+            $publico = PreferredCustomerPricing::publicPrice($p);
+            $precioPreferente = PreferredCustomerPricing::preferenteUnitPrice($p);
+
             if ($preferente) {
-                $cliente = $p->price_cliente_preferente ?? $p->price;
-                $base['price'] = $cliente;
-                $base['precio_mostrar'] = $cliente;
-                $base['precio_cliente_preferente'] = $cliente;
+                $base['price'] = $precioPreferente;
+                $base['precio_mostrar'] = $precioPreferente;
+                $base['precio_publico'] = $publico;
+                $base['precio_socio'] = PreferredCustomerPricing::socioUnitPrice($p);
+                $base['price_cliente_preferente'] = $precioPreferente;
             } else {
                 $base['price'] = $p->price;
                 $base['precio_socio'] = $p->price;
+                $base['precio_publico'] = $publico;
                 if ($p->price_cliente_preferente !== null) {
                     $base['price_cliente_preferente'] = $p->price_cliente_preferente;
                 }

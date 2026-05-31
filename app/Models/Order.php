@@ -27,6 +27,11 @@ class Order extends Model
         'payment_confirmed_at',
         'payment_confirmed_by',
         'payment_admin_notes',
+        'delivery_mode',
+        'shipping_departamento',
+        'shipping_ciudad',
+        'shipping_direccion',
+        'shipping_cost',
     ];
 
     protected function casts(): array
@@ -34,6 +39,7 @@ class Order extends Model
         return [
             'total' => 'decimal:2',
             'total_pv' => 'decimal:2',
+            'shipping_cost' => 'decimal:2',
             'completed_at' => 'datetime',
             'payment_confirmed_at' => 'datetime',
         ];
