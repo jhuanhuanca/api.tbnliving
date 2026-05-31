@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\WalletWithdrawController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\WithdrawalController;
-use App\Http\Controllers\ProspectosController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -74,8 +73,7 @@ return function (bool $v1Auth = false): void {
     Route::get('/packages', [PackageCatalogController::class, 'index']);
     Route::get('/countries', [PublicCountryController::class, 'index']);
 
-    Route::apiResource('prospectos', ProspectosController::class)
-        ->names($v1Auth ? 'v1.prospectos' : 'prospectos');
+  
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/me/binary-placement', [BinaryPlacementSelfController::class, 'store']);
