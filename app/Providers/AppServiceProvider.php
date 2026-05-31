@@ -18,6 +18,7 @@ use App\Models\BinaryPlacement;
 use App\Models\Withdrawal;
 use App\Policies\BinaryPlacementPolicy;
 use App\Policies\WithdrawalPolicy;
+use App\Support\SpaSessionConfig;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -48,19 +49,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        SpaSessionConfig::apply();
+
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
-        }
-
-        // Producción multi-subdominio (admin/front → api): cookies compartidas.
-        if (config('session.domain') && config('app.env') === 'production') {
-            config([
-                'session.secure' => filter_var(
-                    env('SESSION_SECURE_COOKIE', true),
-                    FILTER_VALIDATE_BOOL,
-                ),
-                'session.same_site' => env('SESSION_SAME_SITE', 'none'),
-            ]);
         }
 
         Gate::policy(Withdrawal::class, WithdrawalPolicy::class);

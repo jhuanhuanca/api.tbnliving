@@ -18,6 +18,7 @@ class CrossDomainCsrfCookieController extends Controller
         }
 
         $request->session()->start();
+        $request->session()->save();
 
         $cookie = cookie(
             'XSRF-TOKEN',

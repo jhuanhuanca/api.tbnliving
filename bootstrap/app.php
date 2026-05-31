@@ -33,7 +33,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'XSRF-TOKEN',
         ]);
         $middleware->validateCsrfTokens(except: [
-            // Registro/login SPA: CSRF vía /sanctum/csrf-cookie (no excluir rutas).
+            // Entrada de sesión con token Sanctum (Bearer). Protegidas por credenciales + throttle.
+            'api/v1/auth/login',
+            'api/v1/auth/logout',
+            'api/v1/admin/auth/login',
+            'api/v1/admin/auth/logout',
+            'api/login',
+            'api/register',
+            'api/register/preferred-customer',
+            'api/forgot-password',
+            'api/verify-code',
+            'api/reset-password',
+            'api/email/resend-verification',
         ]);
         $middleware->alias([
             'mlm.admin' => EnsureMlmRole::class,
@@ -46,6 +57,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if (! $request->is('api/*')) {
                 return null;
+            }
+
+            if ($e instanceof \Illuminate\Session\TokenMismatchException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token CSRF inválido o sesión expirada. Recarga la página e intenta de nuevo.',
+                    'code' => 'csrf_token_mismatch',
+                    'data' => null,
+                ], 419);
             }
 
             if ($e instanceof \Illuminate\Validation\ValidationException) {
