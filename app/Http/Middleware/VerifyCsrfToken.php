@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;
 class VerifyCsrfToken extends Middleware
 {
     /**
-     * Login/registro emiten token Bearer; el resto de mutaciones SPA sigue con CSRF vía /sanctum/csrf-cookie.
+     * Rutas públicas sin Bearer (login/registro). El resto autenticado usa Authorization: Bearer.
      *
      * @var array<int, string>
      */
@@ -24,4 +24,17 @@ class VerifyCsrfToken extends Middleware
         'api/reset-password',
         'api/email/resend-verification',
     ];
+
+    /**
+     * CSRF protege sesión por cookie. Con token Sanctum en Authorization el navegador no envía
+     * el token automáticamente (no hay riesgo CSRF clásico).
+     */
+    protected function tokensMatch($request): bool
+    {
+        if ($request->bearerToken()) {
+            return true;
+        }
+
+        return parent::tokensMatch($request);
+    }
 }

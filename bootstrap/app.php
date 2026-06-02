@@ -29,11 +29,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
         $middleware->statefulApi();
+        $middleware->replaceInGroup(
+            'api',
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        );
         $middleware->encryptCookies(except: [
             'XSRF-TOKEN',
         ]);
         $middleware->validateCsrfTokens(except: [
-            // Entrada de sesión con token Sanctum (Bearer). Protegidas por credenciales + throttle.
+            // Públicas sin Bearer. Autenticadas: VerifyCsrfToken omite CSRF si hay Authorization Bearer.
             'api/v1/auth/login',
             'api/v1/auth/logout',
             'api/v1/admin/auth/login',
