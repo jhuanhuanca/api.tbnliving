@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  */
 class MlmMasterNetworkSeeder extends Seeder
 {
-    public const MASTER_MEMBER_CODE = 1;
+    public const MASTER_MEMBER_CODE = 1000;
 
     public function run(): void
     {
@@ -36,7 +36,7 @@ class MlmMasterNetworkSeeder extends Seeder
             ['member_code' => self::MASTER_MEMBER_CODE],
             [
                 'name' => 'Oscar Orellana Aguilar',
-                'email' => 'oscar.orellana@tbnliving.com',
+                'email' => 'tbnliving@gmail.com',
                 'password' => Hash::make('12345678'),
                 'document_id' => '3850408 S.C.',
                 'phone' => '71885588',
