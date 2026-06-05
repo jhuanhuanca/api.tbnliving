@@ -6,7 +6,10 @@ use App\Http\Controllers\Concerns\ResolvesInternalPanelActor;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\OrderPaymentProofStorage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 class AdminOrderController extends Controller
 {
@@ -30,7 +33,31 @@ class AdminOrderController extends Controller
             $q->where('estado', $estado);
         }
 
-        return $q->orderByDesc('created_at')->paginate((int) $request->query('per_page', 25));
+        $paginator = $q->orderByDesc('created_at')->paginate((int) $request->query('per_page', 25));
+
+        $paginator->getCollection()->transform(function (Order $order) {
+            $order->setAttribute('has_payment_proof', OrderPaymentProofStorage::existsFor($order));
+
+            return $order;
+        });
+
+        return $paginator;
+    }
+
+    /**
+     * Comprobante de pago subido por el socio (transferencia / QR).
+     */
+    public function paymentProof(Order $order): Response
+    {
+        if (! OrderPaymentProofStorage::existsFor($order)) {
+            abort(404, 'Este pedido no tiene comprobante de pago.');
+        }
+
+        return Storage::disk(OrderPaymentProofStorage::DISK)->response(
+            (string) $order->payment_proof_path,
+            $order->payment_proof_original_name ?: 'comprobante-pedido-'.$order->id,
+            ['Content-Type' => $order->payment_proof_mime ?: 'application/octet-stream'],
+        );
     }
 
     /**

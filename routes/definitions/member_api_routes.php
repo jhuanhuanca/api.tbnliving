@@ -18,7 +18,10 @@ use App\Http\Controllers\Api\SponsorLookupController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\TwoFactorController;
 use App\Http\Controllers\Api\V1\Member\V1MemberAuthController;
+use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventRegistrationController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\WalletWithdrawController;
 use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\WithdrawalController;
@@ -73,7 +76,9 @@ return function (bool $v1Auth = false): void {
     Route::get('/packages', [PackageCatalogController::class, 'index']);
     Route::get('/countries', [PublicCountryController::class, 'index']);
 
-  
+    Route::get('/events', [EventController::class, 'index']);
+    Route::get('/events/{event}', [EventController::class, 'show'])->whereNumber('event');
+    Route::get('/news', [NewsController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/me/binary-placement', [BinaryPlacementSelfController::class, 'store']);
@@ -119,6 +124,8 @@ return function (bool $v1Auth = false): void {
         Route::get('/products', [ProductCatalogController::class, 'index']);
         Route::get('/orders', [OrderController::class, 'index']);
         Route::post('/orders', [OrderController::class, 'store']);
+        Route::get('/event-registrations', [EventRegistrationController::class, 'index']);
+        Route::post('/event-registrations', [EventRegistrationController::class, 'store']);
         Route::get('/me/invoices', [InvoiceController::class, 'index']);
         Route::get('/me/invoices/{invoice}', [InvoiceController::class, 'show']);
         Route::post('/withdrawals', [WithdrawalController::class, 'store']);

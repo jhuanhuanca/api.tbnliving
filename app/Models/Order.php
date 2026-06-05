@@ -13,6 +13,15 @@ use Carbon\Carbon;
 
 class Order extends Model
 {
+    /**
+     * Ruta interna del comprobante; el admin lo obtiene vía GET .../payment-proof.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'payment_proof_path',
+    ];
+
     protected $fillable = [
         'uuid',
         'reference',
@@ -27,6 +36,9 @@ class Order extends Model
         'payment_confirmed_at',
         'payment_confirmed_by',
         'payment_admin_notes',
+        'payment_proof_path',
+        'payment_proof_mime',
+        'payment_proof_original_name',
         'delivery_mode',
         'shipping_departamento',
         'shipping_ciudad',

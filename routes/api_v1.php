@@ -13,7 +13,12 @@ use App\Http\Controllers\Api\Admin\AdminSupportTicketController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminWalletController;
 use App\Http\Controllers\Api\Admin\AdminWithdrawalController;
+use App\Http\Controllers\Api\Admin\AdminEventController;
+use App\Http\Controllers\Api\Admin\AdminEventRegistrationController;
+use App\Http\Controllers\Api\Admin\AdminNewsController;
 use App\Http\Controllers\Api\Admin\AdminPrintController;
+use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\BinaryPlacementController;
 use App\Http\Controllers\Api\V1\Admin\AdminV1AuthController;
 use App\Http\Controllers\Api\V1\Admin\AdminV1DashboardController;
@@ -30,6 +35,11 @@ use Illuminate\Support\Facades\Route;
 
 $registerMemberApi = require __DIR__.'/definitions/member_api_routes.php';
 $registerMemberApi(true);
+
+Route::prefix('public')->group(function () {
+    Route::get('events/{event}/flyer', [EventController::class, 'flyer'])->whereNumber('event');
+    Route::get('news/{news}/image', [NewsController::class, 'image'])->whereNumber('news');
+});
 
 Route::prefix('admin/auth')->group(function () {
     Route::post('login', [AdminV1AuthController::class, 'login'])
@@ -57,6 +67,7 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
 
         Route::get('orders', [AdminOrderController::class, 'index']);
         Route::post('orders/{order}/confirm-payment', [AdminOrderController::class, 'confirmPayment']);
+        Route::get('orders/{order}/payment-proof', [AdminOrderController::class, 'paymentProof']);
         Route::get('orders/{order}/invoice/print', [AdminPrintController::class, 'orderInvoice']);
         Route::get('withdrawals', [AdminWithdrawalController::class, 'index']);
         Route::post('withdrawals/{withdrawal}/approve', [AdminWithdrawalController::class, 'approve']);
@@ -79,6 +90,24 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
         Route::post('packages', [AdminPackageController::class, 'store']);
         Route::put('packages/{package}', [AdminPackageController::class, 'update']);
         Route::delete('packages/{package}', [AdminPackageController::class, 'destroy']);
+
+        Route::get('events', [AdminEventController::class, 'index']);
+        Route::post('events', [AdminEventController::class, 'store']);
+        Route::put('events/{event}', [AdminEventController::class, 'update'])->whereNumber('event');
+        Route::delete('events/{event}', [AdminEventController::class, 'destroy'])->whereNumber('event');
+        Route::get('events/{event}/flyer', [AdminEventController::class, 'flyer'])->whereNumber('event');
+
+        Route::get('news', [AdminNewsController::class, 'index']);
+        Route::post('news', [AdminNewsController::class, 'store']);
+        Route::put('news/{news}', [AdminNewsController::class, 'update'])->whereNumber('news');
+        Route::delete('news/{news}', [AdminNewsController::class, 'destroy'])->whereNumber('news');
+        Route::get('news/{news}/image', [AdminNewsController::class, 'image'])->whereNumber('news');
+
+        Route::get('event-registrations', [AdminEventRegistrationController::class, 'index']);
+        Route::post('event-registrations/{registration}/confirm-payment', [AdminEventRegistrationController::class, 'confirmPayment'])
+            ->whereNumber('registration');
+        Route::get('event-registrations/{registration}/payment-proof', [AdminEventRegistrationController::class, 'paymentProof'])
+            ->whereNumber('registration');
     });
 
     Route::prefix('analytics')->group(function () {

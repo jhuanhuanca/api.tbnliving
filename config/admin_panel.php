@@ -31,6 +31,9 @@ return [
             'analytics.view',
             'settings.view',
             'support.tickets',
+            'events.view',
+            'events.manage',
+            'news.manage',
         ],
         'support' => [
             'dashboard.view',
@@ -39,6 +42,7 @@ return [
             'orders.view',
             'tree.view',
             'support.tickets',
+            'events.view',
         ],
     ],
 

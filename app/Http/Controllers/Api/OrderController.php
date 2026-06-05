@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WalletPaymentToken;
 use App\Support\FounderPackages;
 use App\Events\Internal\OrderCreated;
+use App\Support\OrderPaymentProofStorage;
 use App\Support\PreferredCustomerPricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,7 @@ class OrderController extends Controller
             'shipping_departamento' => 'nullable|string|max:120',
             'shipping_ciudad' => 'nullable|string|max:120',
             'shipping_direccion' => 'nullable|string|max:255',
+            'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,webp,gif,pdf|max:5120',
         ]);
 
         foreach ($data['items'] as $i => $row) {
@@ -74,6 +76,12 @@ class OrderController extends Controller
 
         $immediate = ($data['payment_settlement'] ?? 'immediate') === 'immediate';
         $paymentMethod = (string) ($data['payment_method'] ?? ($immediate ? 'online' : 'pendiente'));
+
+        if (OrderPaymentProofStorage::requiresProof($paymentMethod) && ! $request->hasFile('payment_proof')) {
+            throw ValidationException::withMessages([
+                'payment_proof' => ['Debes adjuntar el comprobante de pago (imagen o PDF) para transferencia o QR.'],
+            ]);
+        }
 
         $buyer = $request->user();
 
@@ -369,6 +377,11 @@ class OrderController extends Controller
             $order->load(['items.package', 'items.product']);
         }
 
-        return $order->fresh(['items', 'invoice']);
+        if ($request->hasFile('payment_proof')) {
+            OrderPaymentProofStorage::store($order, $request->file('payment_proof'));
+            $order = $order->fresh(['items', 'invoice']);
+        }
+
+        return $order;
     }
 }
