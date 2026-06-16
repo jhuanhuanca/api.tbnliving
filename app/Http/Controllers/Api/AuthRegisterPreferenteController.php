@@ -11,7 +11,7 @@ use App\Services\MemberCodeService;
 use Illuminate\Http\Request;
 
 /**
- * Registro de cliente preferente: solo verificación de correo; compra a precio cliente; bono al patrocinador.
+ * Registro de cliente preferente: sin verificación por correo; acceso directo tras el registro.
  */
 class AuthRegisterPreferenteController extends Controller
 {
@@ -80,8 +80,8 @@ class AuthRegisterPreferenteController extends Controller
             'sponsor_id' => $sponsor->id,
             'account_type' => 'preferred_customer',
             'rank_id' => Rank::query()->where('slug', 'sin_rango')->value('id'),
-            // Mantener pendiente mientras verifica correo (login ya lo bloquea si no verifica).
-            'account_status' => 'pending',
+            'email_verified_at' => now(),
+            'account_status' => 'active',
             'mlm_role' => 'member',
             ...$countryPayload,
         ]);
@@ -89,11 +89,9 @@ class AuthRegisterPreferenteController extends Controller
         $user->loadMissing('sponsor');
         UserRegistered::dispatch($user->fresh());
 
-        $user->sendEmailVerificationNotification();
-
         return response()->json([
-            'message' => 'Cuenta de cliente preferente creada. Confirma tu correo para ingresar.',
-            'requires_email_verification' => true,
+            'message' => 'Cuenta de cliente preferente creada. Ya puedes iniciar sesión.',
+            'requires_email_verification' => false,
             'email' => $user->email,
         ], 201);
     }

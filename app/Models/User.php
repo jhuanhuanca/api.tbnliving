@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Services\MemberCodeService;
+use App\Services\Mail\MemberNotificationService;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -42,6 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'preferred_payment_method',
         'activation_paid_at',
         'account_type',
+        'email_verified_at',
         'last_mlm_activity_at',
         'meta',
         'google2fa_secret',
@@ -199,7 +200,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new VerifyEmailNotification);
+        app(MemberNotificationService::class)->sendEmailVerification($this);
     }
 
     public function getEmailForVerification(): string

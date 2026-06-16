@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\DeliveryNotice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class MemberNotificationService
 {
@@ -24,8 +25,8 @@ class MemberNotificationService
         $frontUrl = rtrim((string) config('app.frontend_url', config('app.url')), '/');
 
         $intro = $isPreferente
-            ? 'Tu cuenta de cliente preferente en TBN Living fue creada correctamente. Confirma tu correo si aún no lo hiciste y accede al catálogo con precios especiales.'
-            : 'Tu inscripción como socio TBN Living fue registrada. Confirma tu correo si aún no lo hiciste y completa tu activación para comenzar a construir tu red.';
+            ? 'Tu cuenta de cliente preferente en TBN Living fue creada correctamente. Ya puedes iniciar sesión y acceder al catálogo con precios especiales.'
+            : 'Tu inscripción como socio TBN Living fue registrada. Revisa tu correo: recibirás un enlace aparte para confirmar tu cuenta y luego podrás iniciar sesión.';
 
         $body = '<ul style="margin:0;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">';
         $body .= '<li>Código de socio: <strong>'.e($user->member_code ?? $user->referral_code ?? '—').'</strong></li>';
@@ -47,6 +48,50 @@ class MemberNotificationService
                 ctaUrl: $frontUrl,
                 ctaLabel: 'Ir al panel',
                 footerNote: 'Gracias por confiar en TBN Living.',
+            )
+        );
+    }
+
+    /**
+     * Enlace de verificación de correo (misma cola/canal que el correo de bienvenida).
+     */
+    public function sendEmailVerification(User $user): bool
+    {
+        if ($user->hasVerifiedEmail()) {
+            return false;
+        }
+
+        $expireMinutes = max(15, (int) config('auth.verification.expire', 1440));
+
+        $url = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes($expireMinutes),
+            [
+                'id' => $user->getKey(),
+                'hash' => sha1($user->getEmailForVerification()),
+            ]
+        );
+
+        $hours = (int) floor($expireMinutes / 60);
+        $expiryLabel = $hours >= 1
+            ? ($hours === 1 ? '1 hora' : "{$hours} horas")
+            : "{$expireMinutes} minutos";
+
+        $body = '<p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">'
+            .'Haz clic en el botón para confirmar que este correo es tuyo. '
+            .'El enlace expira en <strong>'.e($expiryLabel).'</strong>.</p>';
+
+        return $this->queueTo(
+            $user,
+            new TransactionalMail(
+                mailSubject: 'Confirma tu correo — TBN Living',
+                heading: 'Verifica tu cuenta',
+                userName: $user->name,
+                intro: 'Para activar tu cuenta y poder iniciar sesión, confirma tu correo electrónico.',
+                bodyHtml: $body,
+                ctaUrl: $url,
+                ctaLabel: 'Confirmar mi correo',
+                footerNote: 'Si no creaste esta cuenta, ignora este mensaje.',
             )
         );
     }
