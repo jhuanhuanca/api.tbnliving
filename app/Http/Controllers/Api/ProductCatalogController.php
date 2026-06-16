@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Support\PreferredCustomerPricing;
+use App\Support\ProductImageStorage;
 use Illuminate\Http\Request;
 
 class ProductCatalogController extends Controller
@@ -26,7 +27,8 @@ class ProductCatalogController extends Controller
                 'name' => $p->name,
                 'description' => $p->description,
                 'stock' => $p->stock,
-                'image_url' => $p->image_url,
+                'image_url' => $p->resolveImageUrl(),
+                'has_stored_image' => ProductImageStorage::existsFor($p),
                 'category_id' => $p->category_id,
                 'pv_points' => $p->pv_points,
                 'estado' => $p->estado,

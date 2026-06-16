@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Internal\Sync;
 
 use App\Models\Product;
+use App\Support\ProductImageStorage;
 use Illuminate\Http\Request;
 
 class SyncProductsController extends BaseSyncController
@@ -57,7 +58,8 @@ class SyncProductsController extends BaseSyncController
                 'price' => (string) $p->price,
                 'price_cliente_preferente' => (string) $p->price_cliente_preferente,
                 'stock' => $p->stock,
-                'image_url' => $p->image_url,
+                'image_url' => $p->resolveImageUrl(),
+                'has_stored_image' => ProductImageStorage::existsFor($p),
                 'category_id' => $p->category_id,
                 'pv_points' => (string) ($p->pv_points ?? '0'),
                 'estado' => $p->estado,

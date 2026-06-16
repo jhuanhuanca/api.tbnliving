@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Admin\AdminNewsController;
 use App\Http\Controllers\Api\Admin\AdminPrintController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\BinaryPlacementController;
 use App\Http\Controllers\Api\V1\Admin\AdminV1AuthController;
 use App\Http\Controllers\Api\V1\Admin\AdminV1DashboardController;
@@ -39,6 +40,7 @@ $registerMemberApi(true);
 Route::prefix('public')->group(function () {
     Route::get('events/{event}/flyer', [EventController::class, 'flyer'])->whereNumber('event');
     Route::get('news/{news}/image', [NewsController::class, 'image'])->whereNumber('news');
+    Route::get('products/{product}/image', [ProductController::class, 'image'])->whereNumber('product');
 });
 
 Route::prefix('admin/auth')->group(function () {
@@ -86,6 +88,7 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
         Route::post('products', [AdminProductController::class, 'store']);
         Route::put('products/{product}', [AdminProductController::class, 'update']);
         Route::delete('products/{product}', [AdminProductController::class, 'destroy']);
+        Route::get('products/{product}/image', [AdminProductController::class, 'image'])->whereNumber('product');
         Route::get('packages', [AdminPackageController::class, 'index']);
         Route::post('packages', [AdminPackageController::class, 'store']);
         Route::put('packages/{package}', [AdminPackageController::class, 'update']);
