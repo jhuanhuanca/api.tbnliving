@@ -30,6 +30,12 @@ final class ProductImageStorage
         $filename = Str::uuid().'.'.$ext;
         $path = $file->storeAs(self::DIRECTORY.'/'.$product->id, $filename, self::DISK);
 
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException(
+                'No se pudo guardar la imagen en almacenamiento. Verifique permisos de escritura en storage/app/private.'
+            );
+        }
+
         $product->forceFill([
             'image_path' => $path,
             'image_mime' => (string) $file->getMimeType(),

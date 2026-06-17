@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Support\ProductImageStorage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -45,11 +46,15 @@ class AdminProductController extends Controller
 
         unset($data['image']);
 
-        $product = Product::query()->create($data);
+        $product = DB::transaction(function () use ($request, $data) {
+            $product = Product::query()->create($data);
 
-        if ($request->hasFile('image')) {
-            ProductImageStorage::store($product, $request->file('image'));
-        }
+            if ($request->hasFile('image')) {
+                ProductImageStorage::store($product, $request->file('image'));
+            }
+
+            return $product;
+        });
 
         return response()->json($this->adminPayload($product->fresh()->load('category')), 201);
     }
@@ -71,11 +76,13 @@ class AdminProductController extends Controller
 
         unset($data['image']);
 
-        $product->update($data);
+        DB::transaction(function () use ($request, $product, $data) {
+            $product->update($data);
 
-        if ($request->hasFile('image')) {
-            ProductImageStorage::store($product, $request->file('image'));
-        }
+            if ($request->hasFile('image')) {
+                ProductImageStorage::store($product, $request->file('image'));
+            }
+        });
 
         return response()->json($this->adminPayload($product->fresh()->load('category')));
     }

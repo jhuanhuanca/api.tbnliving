@@ -14,7 +14,7 @@ use App\Http\Middleware\InternalApiMiddleware;
 use App\Http\Middleware\InternalApiTokenMiddleware;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Jobs\ApplyBinaryMonthlyPenaltyJob;
-use Fruitcake\Cors\CorsService;
+use App\Support\CorsJsonResponse;
 use App\Jobs\CalculateLeadershipMonthlyBonusesJob;
 use App\Jobs\PayDeferredCommissionsWeeklyJob;
 use App\Models\User;
@@ -60,12 +60,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
-            if (! $request->is('api/*')) {
+            if (! CorsJsonResponse::shouldApply($request)) {
                 return null;
             }
 
             if ($e instanceof \Illuminate\Session\TokenMismatchException) {
-                return response()->json([
+                return CorsJsonResponse::make($request, [
                     'success' => false,
                     'message' => 'Token CSRF inválido o sesión expirada. Recarga la página e intenta de nuevo.',
                     'code' => 'csrf_token_mismatch',
@@ -73,16 +73,42 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 419);
             }
 
+            if ($e instanceof \Illuminate\Http\Exceptions\PostTooLargeException) {
+                return CorsJsonResponse::make($request, [
+                    'success' => false,
+                    'message' => 'El archivo es demasiado grande. Máximo permitido: 5 MB.',
+                    'code' => 'payload_too_large',
+                    'data' => null,
+                ], 413);
+            }
+
             if ($e instanceof \Illuminate\Validation\ValidationException) {
                 $errors = $e->errors();
                 $first = collect($errors)->flatten()->first() ?: 'Datos inválidos';
 
-                return response()->json([
+                return CorsJsonResponse::make($request, [
                     'success' => false,
                     'message' => $first,
                     'errors' => $errors,
                     'data' => ['errors' => $errors],
                 ], 422);
+            }
+
+            if ($e instanceof \Illuminate\Database\QueryException) {
+                $sqlMessage = $e->getMessage();
+                $hint = null;
+                if (str_contains($sqlMessage, 'image_path')
+                    || str_contains($sqlMessage, 'image_mime')
+                    || str_contains($sqlMessage, 'image_original_name')) {
+                    $hint = 'Faltan columnas de imagen en productos. Ejecute en el servidor: php artisan migrate --force';
+                }
+
+                return CorsJsonResponse::make($request, [
+                    'success' => false,
+                    'message' => $hint ?? (config('app.debug') ? $sqlMessage : 'Error de base de datos'),
+                    'code' => $hint ? 'migration_required' : 'database_error',
+                    'data' => config('app.debug') ? ['exception' => class_basename($e)] : null,
+                ], $hint ? 503 : 500);
             }
 
             $status = 500;
@@ -95,15 +121,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 $message = 'Error interno del servidor';
             }
 
-            $response = response()->json([
+            return CorsJsonResponse::make($request, [
                 'success' => false,
                 'message' => $message,
                 'data' => config('app.debug') ? [
                     'exception' => class_basename($e),
                 ] : null,
             ], $status);
-
-            return app(CorsService::class)->addActualRequestHeaders($response, $request);
         });
     })
     ->withSchedule(function (Schedule $schedule) {
