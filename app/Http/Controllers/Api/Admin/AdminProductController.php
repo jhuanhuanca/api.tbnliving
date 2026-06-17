@@ -41,7 +41,7 @@ class AdminProductController extends Controller
         $data['estado'] = $data['estado'] ?? 'activo';
         $data['stock'] = $data['stock'] ?? 0;
         if (! isset($data['price_cliente_preferente']) || $data['price_cliente_preferente'] === null || $data['price_cliente_preferente'] === '') {
-            $data['price_cliente_preferente'] = bcadd((string) $data['price'], bcmul((string) $data['price'], '0.12', 4), 2);
+            $data['price_cliente_preferente'] = number_format((float) $data['price'] * 1.12, 2, '.', '');
         }
 
         unset($data['image']);

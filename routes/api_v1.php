@@ -87,6 +87,7 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
         Route::get('products', [AdminProductController::class, 'index']);
         Route::post('products', [AdminProductController::class, 'store']);
         Route::put('products/{product}', [AdminProductController::class, 'update']);
+        Route::post('products/{product}', [AdminProductController::class, 'update'])->whereNumber('product');
         Route::delete('products/{product}', [AdminProductController::class, 'destroy']);
         Route::get('products/{product}/image', [AdminProductController::class, 'image'])->whereNumber('product');
         Route::get('packages', [AdminPackageController::class, 'index']);
@@ -97,12 +98,14 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
         Route::get('events', [AdminEventController::class, 'index']);
         Route::post('events', [AdminEventController::class, 'store']);
         Route::put('events/{event}', [AdminEventController::class, 'update'])->whereNumber('event');
+        Route::post('events/{event}', [AdminEventController::class, 'update'])->whereNumber('event');
         Route::delete('events/{event}', [AdminEventController::class, 'destroy'])->whereNumber('event');
         Route::get('events/{event}/flyer', [AdminEventController::class, 'flyer'])->whereNumber('event');
 
         Route::get('news', [AdminNewsController::class, 'index']);
         Route::post('news', [AdminNewsController::class, 'store']);
         Route::put('news/{news}', [AdminNewsController::class, 'update'])->whereNumber('news');
+        Route::post('news/{news}', [AdminNewsController::class, 'update'])->whereNumber('news');
         Route::delete('news/{news}', [AdminNewsController::class, 'destroy'])->whereNumber('news');
         Route::get('news/{news}/image', [AdminNewsController::class, 'image'])->whereNumber('news');
 
