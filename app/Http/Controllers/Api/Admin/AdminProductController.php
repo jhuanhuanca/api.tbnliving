@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Support\ProductImageStorage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -21,6 +23,30 @@ class AdminProductController extends Controller
             ->map(fn (Product $product) => $this->adminPayload($product));
 
         return response()->json(['data' => $rows]);
+    }
+
+    /** Diagnóstico: por qué falla la subida de imagen en producción. */
+    public function imageUploadStatus(): JsonResponse
+    {
+        $diskRoot = Storage::disk(ProductImageStorage::DISK)->path('');
+        $columnsOk = Schema::hasColumn('products', 'image_path')
+            && Schema::hasColumn('products', 'image_mime')
+            && Schema::hasColumn('products', 'image_original_name');
+        $writable = is_dir($diskRoot) && is_writable($diskRoot);
+
+        $ready = $columnsOk && $writable;
+
+        return response()->json([
+            'ready' => $ready,
+            'migration_ok' => $columnsOk,
+            'storage_writable' => $writable,
+            'storage_path' => 'storage/app/private',
+            'message' => $ready
+                ? 'Listo para subir imágenes de productos.'
+                : (! $columnsOk
+                    ? 'Falta migración: php artisan migrate --force'
+                    : 'Sin permisos en storage/app/private'),
+        ]);
     }
 
     public function store(Request $request)
@@ -45,6 +71,13 @@ class AdminProductController extends Controller
         }
 
         unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $ready = $this->assertImageUploadReady();
+            if ($ready instanceof JsonResponse) {
+                return $ready;
+            }
+        }
 
         $product = DB::transaction(function () use ($request, $data) {
             $product = Product::query()->create($data);
@@ -75,6 +108,13 @@ class AdminProductController extends Controller
         ]);
 
         unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $ready = $this->assertImageUploadReady();
+            if ($ready instanceof JsonResponse) {
+                return $ready;
+            }
+        }
 
         DB::transaction(function () use ($request, $product, $data) {
             $product->update($data);
@@ -120,5 +160,29 @@ class AdminProductController extends Controller
             : null;
 
         return $arr;
+    }
+
+    private function assertImageUploadReady(): ?JsonResponse
+    {
+        if (! Schema::hasColumn('products', 'image_path')
+            || ! Schema::hasColumn('products', 'image_mime')
+            || ! Schema::hasColumn('products', 'image_original_name')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El servidor no tiene la migración de imágenes de productos. Ejecute: php artisan migrate --force',
+                'code' => 'migration_required',
+            ], 503);
+        }
+
+        $diskRoot = Storage::disk(ProductImageStorage::DISK)->path('');
+        if (! is_dir($diskRoot) || ! is_writable($diskRoot)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sin permisos de escritura en storage/app/private. En el servidor: chmod -R ug+rwx storage && chown -R www-data:www-data storage',
+                'code' => 'storage_not_writable',
+            ], 503);
+        }
+
+        return null;
     }
 }

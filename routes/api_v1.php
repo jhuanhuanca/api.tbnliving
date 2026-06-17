@@ -84,6 +84,7 @@ Route::middleware(['auth:sanctum', 'mlm.admin'])->group(function () {
             ->where('monthKey', '[0-9]{4}-[0-9]{2}');
 
         Route::get('categories', [AdminCategoryController::class, 'index']);
+        Route::get('products/image-upload-status', [AdminProductController::class, 'imageUploadStatus']);
         Route::get('products', [AdminProductController::class, 'index']);
         Route::post('products', [AdminProductController::class, 'store']);
         Route::put('products/{product}', [AdminProductController::class, 'update']);

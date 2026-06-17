@@ -31,6 +31,11 @@ final class ProductImageStorage
         $path = $file->storeAs(self::DIRECTORY.'/'.$product->id, $filename, self::DISK);
 
         if (! is_string($path) || $path === '') {
+            Storage::disk(self::DISK)->makeDirectory(self::DIRECTORY.'/'.$product->id);
+            $path = $file->storeAs(self::DIRECTORY.'/'.$product->id, $filename, self::DISK);
+        }
+
+        if (! is_string($path) || $path === '') {
             throw new \RuntimeException(
                 'No se pudo guardar la imagen en almacenamiento. Verifique permisos de escritura en storage/app/private.'
             );

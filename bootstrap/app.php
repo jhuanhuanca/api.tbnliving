@@ -15,6 +15,7 @@ use App\Http\Middleware\InternalApiTokenMiddleware;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Jobs\ApplyBinaryMonthlyPenaltyJob;
 use App\Support\CorsJsonResponse;
+use Fruitcake\Cors\CorsService;
 use App\Jobs\CalculateLeadershipMonthlyBonusesJob;
 use App\Jobs\PayDeferredCommissionsWeeklyJob;
 use App\Models\User;
@@ -43,6 +44,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/auth/logout',
             'api/v1/admin/auth/login',
             'api/v1/admin/auth/logout',
+            // Subida multipart: el Bearer debe bastar; esto evita 419 si el header no llega en FormData.
+            'api/v1/admin/products',
+            'api/v1/admin/products/*',
+            'api/v1/admin/events',
+            'api/v1/admin/events/*',
+            'api/v1/admin/news',
+            'api/v1/admin/news/*',
             'api/login',
             'api/register',
             'api/register/preferred-customer',
@@ -128,6 +136,15 @@ return Application::configure(basePath: dirname(__DIR__))
                     'exception' => class_basename($e),
                 ] : null,
             ], $status);
+        });
+
+        // CORS en cualquier respuesta de error (incluye 500 sin pasar por render).
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if (! CorsJsonResponse::shouldApply($request)) {
+                return $response;
+            }
+
+            return app(CorsService::class)->addActualRequestHeaders($response, $request);
         });
     })
     ->withSchedule(function (Schedule $schedule) {
