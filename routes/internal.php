@@ -48,6 +48,7 @@ Route::prefix('internal/admin')
             ->where('monthKey', '[0-9]{4}-[0-9]{2}');
 
         Route::post('/orders/{order}/confirm-payment', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'confirmPayment']);
+        Route::post('/orders/{order}/cancel', [\App\Http\Controllers\Api\Admin\AdminOrderController::class, 'cancel']);
         Route::post('/withdrawals/{withdrawal}/approve', [\App\Http\Controllers\Api\Admin\AdminWithdrawalController::class, 'approve']);
         Route::post('/withdrawals/{withdrawal}/reject', [\App\Http\Controllers\Api\Admin\AdminWithdrawalController::class, 'reject']);
     });

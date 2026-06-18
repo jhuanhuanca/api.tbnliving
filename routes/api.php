@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/orders', [AdminOrderController::class, 'index']);
         Route::post('/orders/{order}/confirm-payment', [AdminOrderController::class, 'confirmPayment']);
+        Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
         Route::get('/orders/{order}/payment-proof', [AdminOrderController::class, 'paymentProof']);
         Route::get('/withdrawals', [AdminWithdrawalController::class, 'index']);
         Route::post('/withdrawals/{withdrawal}/approve', [AdminWithdrawalController::class, 'approve']);

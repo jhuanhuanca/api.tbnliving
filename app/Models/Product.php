@@ -61,4 +61,15 @@ class Product extends Model
 
         return is_string($legacy) && trim($legacy) !== '' ? trim($legacy) : null;
     }
+
+    /** Stock disponible para venta (nunca negativo). */
+    public function availableStock(): int
+    {
+        return max(0, (int) $this->stock);
+    }
+
+    public function isInStock(): bool
+    {
+        return $this->availableStock() > 0;
+    }
 }

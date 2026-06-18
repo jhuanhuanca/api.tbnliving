@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesInternalPanelActor;
 use App\Http\Controllers\Controller;
+use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\OrderPaymentProofStorage;
@@ -79,9 +80,13 @@ class AdminOrderController extends Controller
             'payment_confirmed_at' => now(),
             'payment_confirmed_by' => $this->resolveActor($request)->id,
             'payment_admin_notes' => $data['notas'] ?? $order->payment_admin_notes,
-        ]);
+        ])->save();
 
-        $order->markCompleted();
+        try {
+            $order->markCompleted();
+        } catch (InsufficientStockException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         $order->load(['items.package', 'items.product', 'invoice']);
 
@@ -104,6 +109,34 @@ class AdminOrderController extends Controller
             'items.package',
             'invoice',
             'paymentConfirmedBy',
+        ]));
+    }
+
+    /**
+     * Cancela un pedido. Si estaba completado, restaura el stock descontado.
+     * No revierte comisiones MLM (solo inventario).
+     */
+    public function cancel(Request $request, Order $order)
+    {
+        $data = $request->validate([
+            'notas' => 'nullable|string|max:2000',
+        ]);
+
+        if ($order->estado === 'cancelado') {
+            return response()->json(['message' => 'El pedido ya está cancelado.'], 422);
+        }
+
+        if (! in_array($order->estado, ['pendiente', 'pendiente_pago', 'completado'], true)) {
+            return response()->json(['message' => 'Este pedido no puede cancelarse.'], 422);
+        }
+
+        $order->markCancelled($this->resolveActor($request)->id, $data['notas'] ?? null);
+
+        return response()->json($order->fresh([
+            'items.product',
+            'items.package',
+            'invoice',
+            'cancelledBy',
         ]));
     }
 }

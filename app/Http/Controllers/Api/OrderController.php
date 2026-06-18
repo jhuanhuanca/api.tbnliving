@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Package;
@@ -297,69 +298,88 @@ class OrderController extends Controller
         });
 
         if ($immediate) {
-            // Pago inmediato: si es con billetera, debitar antes de completar.
-            if (in_array($paymentMethod, ['wallet', 'wallet_token'], true)) {
-                $payer = $buyer;
-                $tokenRow = null;
+            try {
+                DB::transaction(function () use ($order, $buyer, $paymentMethod, $data, $walletService) {
+                    /** @var Order $locked */
+                    $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-                if ($paymentMethod === 'wallet_token') {
-                    $plain = strtoupper(trim((string) ($data['payment_token'] ?? '')));
-                    if ($plain === '') {
-                        return response()->json(['message' => 'Token de usuario requerido para pagar con billetera de otro socio.'], 422);
-                    }
+                    if (in_array($paymentMethod, ['wallet', 'wallet_token'], true)) {
+                        $payer = $buyer;
+                        $tokenRow = null;
 
-                    $hash = hash('sha256', $plain);
-                    $tokenRow = WalletPaymentToken::query()
-                        ->where('token_hash', $hash)
-                        ->first();
-                    if (! $tokenRow) {
-                        return response()->json(['message' => 'Token inválido.'], 422);
-                    }
-                    if ($tokenRow->used_at !== null) {
-                        return response()->json(['message' => 'Token ya fue usado.'], 422);
-                    }
-                    if ($tokenRow->expires_at && $tokenRow->expires_at->isPast()) {
-                        return response()->json(['message' => 'Token expiró. Genera uno nuevo (dura 10 minutos).'], 422);
-                    }
+                        if ($paymentMethod === 'wallet_token') {
+                            $plain = strtoupper(trim((string) ($data['payment_token'] ?? '')));
+                            if ($plain === '') {
+                                throw ValidationException::withMessages([
+                                    'payment_token' => ['Token de usuario requerido para pagar con billetera de otro socio.'],
+                                ]);
+                            }
 
-                    $payer = User::query()->find((int) $tokenRow->owner_user_id);
-                    if (! $payer) {
-                        return response()->json(['message' => 'No se encontró el propietario del token.'], 422);
-                    }
-                }
+                            $hash = hash('sha256', $plain);
+                            $tokenRow = WalletPaymentToken::query()
+                                ->where('token_hash', $hash)
+                                ->first();
+                            if (! $tokenRow) {
+                                throw ValidationException::withMessages([
+                                    'payment_token' => ['Token inválido.'],
+                                ]);
+                            }
+                            if ($tokenRow->used_at !== null) {
+                                throw ValidationException::withMessages([
+                                    'payment_token' => ['Token ya fue usado.'],
+                                ]);
+                            }
+                            if ($tokenRow->expires_at && $tokenRow->expires_at->isPast()) {
+                                throw ValidationException::withMessages([
+                                    'payment_token' => ['Token expiró. Genera uno nuevo (dura 10 minutos).'],
+                                ]);
+                            }
 
-                // Debitar saldo del pagador.
-                $amount = bcadd((string) ($order->total ?? '0'), '0', 2);
-                $idk = "walletpay:order:{$order->id}:payer:{$payer->id}";
-                $walletService->debitarSiSaldoSuficiente($payer, $amount, $idk, [
-                    'order_id' => $order->id,
-                    'buyer_user_id' => $buyer->id,
-                    'payment_method' => $paymentMethod,
-                ]);
+                            $payer = User::query()->find((int) $tokenRow->owner_user_id);
+                            if (! $payer) {
+                                throw ValidationException::withMessages([
+                                    'payment_token' => ['No se encontró el propietario del token.'],
+                                ]);
+                            }
+                        }
 
-                // Marcar token como usado (si aplica) + confirmar pago en pedido.
-                DB::transaction(function () use ($order, $payer, $buyer, $paymentMethod, $tokenRow) {
-                    if ($tokenRow) {
-                        $tokenRow->forceFill([
-                            'used_at' => now(),
-                            'used_by_user_id' => $buyer->id,
-                            'used_order_id' => $order->id,
+                        $amount = bcadd((string) ($locked->total ?? '0'), '0', 2);
+                        $idk = "walletpay:order:{$locked->id}:payer:{$payer->id}";
+                        $walletService->debitarSiSaldoSuficiente($payer, $amount, $idk, [
+                            'order_id' => $locked->id,
+                            'buyer_user_id' => $buyer->id,
+                            'payment_method' => $paymentMethod,
+                        ]);
+
+                        if ($tokenRow) {
+                            $tokenRow->forceFill([
+                                'used_at' => now(),
+                                'used_by_user_id' => $buyer->id,
+                                'used_order_id' => $locked->id,
+                            ])->save();
+                        }
+
+                        $locked->forceFill([
+                            'payment_confirmed_at' => now(),
+                            'payment_confirmed_by' => $payer->id,
+                            'payment_admin_notes' => $paymentMethod === 'wallet'
+                                ? 'Pago con billetera'
+                                : 'Pago con token de usuario (billetera)',
+                            'payment_method' => $paymentMethod,
                         ])->save();
                     }
-                    $order->forceFill([
-                        'payment_confirmed_at' => now(),
-                        'payment_confirmed_by' => $payer->id,
-                        'payment_admin_notes' => $paymentMethod === 'wallet'
-                            ? 'Pago con billetera'
-                            : 'Pago con token de usuario (billetera)',
-                        'payment_method' => $paymentMethod,
-                    ])->save();
+
+                    $locked->markCompleted();
                 });
+            } catch (InsufficientStockException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            } catch (ValidationException $e) {
+                $message = collect($e->errors())->flatten()->first() ?: 'Datos inválidos';
+
+                return response()->json(['message' => $message, 'errors' => $e->errors()], 422);
             }
 
-            $order->markCompleted();
-
-            $order->load(['items.package', 'items.product', 'invoice']);
+            $order = $order->fresh(['items.package', 'items.product', 'invoice']);
             /** @var User $buyer */
             $buyer = $request->user()->fresh();
             if (! $buyer->canAccessAdminPanel() && ! $buyer->isPreferredCustomer()) {

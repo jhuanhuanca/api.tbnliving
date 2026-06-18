@@ -90,6 +90,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 413);
             }
 
+            if ($e instanceof \App\Exceptions\InsufficientStockException) {
+                return CorsJsonResponse::make($request, [
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'code' => 'insufficient_stock',
+                    'data' => null,
+                ], 422);
+            }
+
             if ($e instanceof \Illuminate\Validation\ValidationException) {
                 $errors = $e->errors();
                 $first = collect($errors)->flatten()->first() ?: 'Datos inválidos';

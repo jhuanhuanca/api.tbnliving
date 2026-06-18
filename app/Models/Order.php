@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Events\OrderCompleted;
+use App\Exceptions\InsufficientStockException;
 use App\Services\InvoiceService;
+use App\Services\ProductInventoryService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -32,6 +35,10 @@ class Order extends Model
         'total_pv',
         'estado',
         'completed_at',
+        'stock_deducted_at',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_notes',
         'payment_method',
         'payment_confirmed_at',
         'payment_confirmed_by',
@@ -53,6 +60,8 @@ class Order extends Model
             'total_pv' => 'decimal:2',
             'shipping_cost' => 'decimal:2',
             'completed_at' => 'datetime',
+            'stock_deducted_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'payment_confirmed_at' => 'datetime',
         ];
     }
@@ -69,6 +78,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function paymentConfirmedBy(): BelongsTo
@@ -216,22 +230,77 @@ class Order extends Model
         );
     }
 
+    /**
+     * @throws InsufficientStockException
+     */
     public function markCompleted(): void
     {
-        if ($this->estado === 'completado') {
+        $justCompleted = DB::transaction(function () {
+            /** @var self|null $order */
+            $order = self::query()->whereKey($this->id)->lockForUpdate()->first();
+            if (! $order) {
+                return false;
+            }
+
+            if ($order->estado === 'completado') {
+                $this->setRawAttributes($order->getAttributes());
+                $this->syncOriginal();
+
+                return false;
+            }
+
+            if (! in_array($order->estado, ['pendiente', 'pendiente_pago'], true)) {
+                return false;
+            }
+
+            app(ProductInventoryService::class)->deductForOrder($order);
+
+            $order->estado = 'completado';
+            $order->completed_at = now();
+            $order->save();
+
+            $this->setRawAttributes($order->getAttributes());
+            $this->syncOriginal();
+
+            return true;
+        });
+
+        if (! $justCompleted) {
             return;
         }
-        if (! in_array($this->estado, ['pendiente', 'pendiente_pago'], true)) {
-            return;
-        }
-        $this->estado = 'completado';
-        $this->completed_at = now();
-        $this->save();
+
         $order = $this->fresh(['items.product', 'items.package', 'user.sponsor', 'user.rank']);
         if ($order) {
-            // Factura local de inmediato (no depende de la cola de MLM).
             app(InvoiceService::class)->emitirDesdeOrdenSiNoExiste($order);
             OrderCompleted::dispatch($order);
         }
+    }
+
+    public function markCancelled(?int $cancelledByUserId = null, ?string $notes = null): void
+    {
+        DB::transaction(function () use ($cancelledByUserId, $notes) {
+            /** @var self|null $order */
+            $order = self::query()->whereKey($this->id)->lockForUpdate()->first();
+            if (! $order || $order->estado === 'cancelado') {
+                return;
+            }
+
+            if (! in_array($order->estado, ['pendiente', 'pendiente_pago', 'completado'], true)) {
+                return;
+            }
+
+            if ($order->estado === 'completado') {
+                app(ProductInventoryService::class)->restoreForOrder($order);
+            }
+
+            $order->estado = 'cancelado';
+            $order->cancelled_at = now();
+            $order->cancelled_by = $cancelledByUserId;
+            $order->cancellation_notes = $notes;
+            $order->save();
+
+            $this->setRawAttributes($order->getAttributes());
+            $this->syncOriginal();
+        });
     }
 }
